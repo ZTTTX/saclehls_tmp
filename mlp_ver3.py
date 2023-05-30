@@ -125,7 +125,7 @@ torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
 #     semantics.init_args([p_a.result, p_b.result, p_c.result, p_r.result])
 #     semantics_blk = semantics.body.blocks[0]
 #     semantics_args = semantics_blk.arguments
-from ip_register_ver2 import IPRegistration
+from ip_register_ver3 import IPRegistration
 
 obj = IPRegistration(torch_mlir_module)
 obj.Add_Lib('vitis')
@@ -140,29 +140,29 @@ obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
 obj.Add_Port('input', 'alpha', 'para', 't_IndexType')
 obj.Add_Port('input', 'beta', 'para', 't_IndexType')
-obj.Add_Port('input', 'p_a', 'data', 't_IndexType', ['p_m', 'p_k'])
 obj.Add_Port('input', 'p_b', 'data', 't_IndexType', ['p_k', 'p_n'])
+obj.Add_Port('input', 'p_a', 'data', 't_IndexType', ['p_m', 'p_k'])
 obj.Add_Port('input', 'p_c', 'data', 't_IndexType', ['p_m', 'p_n'])
 obj.Add_Port('output', 'p_r', 'data', 't_IndexType', ['p_m', 'p_n'])
 obj.IO_Warpper()
 
 @linalg_structured_op
 def matmul_mono(
-        A=TensorDef(T, S.M, S.K),
         B=TensorDef(T, S.K, S.N),
+        A=TensorDef(T, S.M, S.K), 
         C=TensorDef(T, S.M, S.N, output=True)):
     domain(D.m, D.n, D.k)
     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
-module, ctx = obj.IP_Wrapper(matmul_mono)
+module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_b'], ['input', 'p_a'], ['output', 'p_c']], [['ip_output', 'p_r']])
 
 
 
-insert = InsertionPoint.at_block_begin(semantics_blk)
-with ctx, loc, insert:
-    matmul_mono(semantics_args[1], semantics_args[0], outs=[semantics_args[2]])
-    result = semantics_blk.operations[0]
-    hls.SemanticsOutputOp([result], [semantics_args[3]])
+# insert = InsertionPoint.at_block_begin(semantics_blk)
+# with ctx, loc, insert:
+#     matmul_mono(semantics_args[1], semantics_args[0], outs=[semantics_args[2]])
+#     result = semantics_blk.operations[0]
+#     hls.SemanticsOutputOp([result], [semantics_args[3]])
 
 with ctx:
     pm = PassManager()
@@ -198,12 +198,12 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-with ctx:
-    pm = PassManager()
-    scalehls.add_comprehensive_bufferize_passes(pm)
-    scalehls.add_lower_dataflow_passes(pm)
-    scalehls.add_convert_dataflow_to_func_passes(pm)
-    pm.run(module.operation)  # type: ignore
+# with ctx:
+#     pm = PassManager()
+#     scalehls.add_comprehensive_bufferize_passes(pm)
+#     scalehls.add_lower_dataflow_passes(pm)
+#     scalehls.add_convert_dataflow_to_func_passes(pm)
+#     pm.run(module.operation)  # type: ignore
 
 print(module)
 
