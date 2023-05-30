@@ -55,42 +55,42 @@ model.train(False)
 torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
                                        output_type="linalg-on-tensors")
 
-ctx = Context()
-scalehls.register_everything(ctx)
+# ctx = Context()
+# scalehls.register_everything(ctx)
 
-# Parse module from torch_mlir_module and create new insert point and location.
-with ctx:
-    module = Module.parse(str(torch_mlir_module))
-    insert = InsertionPoint.at_block_begin(module.body)
-    loc = Location.unknown()
+# # Parse module from torch_mlir_module and create new insert point and location.
+# with ctx:
+#     module = Module.parse(str(torch_mlir_module))
+#     insert = InsertionPoint.at_block_begin(module.body)
+#     loc = Location.unknown()
 
-from ip_register_test import IPRegistration
-obj = IPRegistration(ctx, loc, insert)
-obj.Add_Lib('vitis')
-obj.Add_IP('gemm')
-gemm_path = "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp"
-gemm_para = [['template', 'type', [], ['float']], #t_DataType 0
-        ['template', 'type', [], ['int']], #t_IndexType 1
-        ['template', 'para', [], [32]], #k_bufferDim 2
-        ['template', 'para', [], [2]], #t_par 3
-        ['template', 'para', [], [1024]], #Max c size 4
-        ['input', 'para', [], ['var_1']], #m 5
-        ['input', 'para', [], ['var_1']], #n 6
-        ['input', 'para', [], ['var_1']], #k 7
-        ['input', 'para', [], ['var_1']], #alpha 8
-        ['input', 'para', [], ['var_1']], #beta 9
-        ['input', 'data', ['var_5','var_7'], ['var_0']], #A: m*k
-        ['input', 'data', ['var_7','var_6'], ['var_0']], #B: k*n
-        ['input', 'data', ['var_5','var_6'], ['var_0']], #C: m*n
-        ['output', 'data', ['var_5','var_6'], ['var_0']]] #R: m*n
+# from ip_register_test import IPRegistration
+# obj = IPRegistration(ctx, loc, insert)
+# obj.Add_Lib('vitis')
+# obj.Add_IP('gemm')
+# gemm_path = "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp"
+# gemm_para = [['template', 'type', [], ['float']], #t_DataType 0
+#         ['template', 'type', [], ['int']], #t_IndexType 1
+#         ['template', 'para', [], [32]], #k_bufferDim 2
+#         ['template', 'para', [], [2]], #t_par 3
+#         ['template', 'para', [], [1024]], #Max c size 4
+#         ['input', 'para', [], ['var_1']], #m 5
+#         ['input', 'para', [], ['var_1']], #n 6
+#         ['input', 'para', [], ['var_1']], #k 7
+#         ['input', 'para', [], ['var_1']], #alpha 8
+#         ['input', 'para', [], ['var_1']], #beta 9
+#         ['input', 'data', ['var_5','var_7'], ['var_0']], #A: m*k
+#         ['input', 'data', ['var_7','var_6'], ['var_0']], #B: k*n
+#         ['input', 'data', ['var_5','var_6'], ['var_0']], #C: m*n
+#         ['output', 'data', ['var_5','var_6'], ['var_0']]] #R: m*n
 
 
-semantics = obj.Define_IP_Basic(gemm_path, gemm_para)
+# semantics = obj.Define_IP_Basic(gemm_path, gemm_para)
 
-with ctx, loc, insert:   
-    hls.semantics_init_args(semantics)
-    semantics_blk = semantics.body.blocks[0]
-    semantics_args = semantics_blk.arguments
+# with ctx, loc, insert:   
+#     hls.semantics_init_args(semantics)
+#     semantics_blk = semantics.body.blocks[0]
+#     semantics_args = semantics_blk.arguments
 
 # Create a new "vitis" library.
 # with ctx, loc, insert:
@@ -156,6 +156,25 @@ with ctx, loc, insert:
     # semantics_blk = semantics.body.blocks[0]
     # semantics_args = semantics_blk.arguments
 
+from ip_register_ver2 import IPRegistration
+obj = IPRegistration(torch_mlir_module)
+obj.Add_Lib('vitis')
+obj.Add_IP('gemm', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")
+obj.Add_Template('t_DataType', 'type', 'float')
+obj.Add_Template('t_IndexType', 'type', 'int')
+obj.Add_Template('k_KBufferDim', 'para', 'int', [], 32)
+obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
+obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
+obj.Add_Input('p_m', 'para', 't_IndexType')
+obj.Add_Input('p_n', 'para', 't_IndexType')
+obj.Add_Input('p_k', 'para', 't_IndexType')
+obj.Add_Input('alpha', 'para', 't_IndexType')
+obj.Add_Input('beta', 'para', 't_IndexType')
+obj.Add_Input('p_a', 'data', 't_IndexType', ['p_m', 'p_k'])
+obj.Add_Input('p_b', 'data', 't_IndexType', ['p_k', 'p_n'])
+obj.Add_Input('p_c', 'data', 't_IndexType', ['p_m', 'p_n'])
+obj.Add_Output('p_r', 'data', 't_IndexType', ['p_m', 'p_n'])
+obj.IO_Warpper()
 
 @linalg_structured_op
 def matmul_mono(
@@ -165,12 +184,13 @@ def matmul_mono(
     domain(D.m, D.n, D.k)
     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
+module, ctx = obj.IP_Wrapper(matmul_mono)
 
-insert = InsertionPoint.at_block_begin(semantics_blk)
-with ctx, loc, insert:
-    matmul_mono(semantics_args[0], semantics_args[1], outs=[semantics_args[2]])
-    result = semantics_blk.operations[0]
-    hls.SemanticsOutputOp([result], [semantics_args[3]])
+# insert = InsertionPoint.at_block_begin(semantics_blk)
+# with ctx, loc, insert:
+#     matmul_mono(semantics_args[0], semantics_args[1], outs=[semantics_args[2]])
+#     result = semantics_blk.operations[0]
+#     hls.SemanticsOutputOp([result], [semantics_args[3]])
 
 
 

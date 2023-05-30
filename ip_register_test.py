@@ -50,7 +50,7 @@ class IPRegistration:
     def Define_IP_Basic(self, ip_path, para):
         """
         ip_path: path to your ip
-        para: [[entry_function, entry_type, entry_size, entry_default_value], ... ]
+        para: [[name ,entry_function, entry_type, entry_size, entry_default_value], ... ]
                 entry_function: can be one of "template"/"input"/"output"
                 entry_type: For entry_function "template", can be one of "type"/"para"
                                 "type": Support "float" and "int", which should be filled to entry_default_value 
@@ -128,7 +128,7 @@ class IPRegistration:
                     self.type_index = []
                     self.size_index = []
                     self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.ip_para[i][2])))
-                    self.output_kind = hls.PortKindAttr.get(hls.PortKind.input)
+                    self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
                     for item in self.ip_para[i][3]: #Check for pointing indexes for type
                         if 'var' in item:
                             self.type_index.append(self.var_dict[item])
