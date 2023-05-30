@@ -44,9 +44,10 @@ class IPRegistration:
 
     def Add_IP(self, ip_name, ip_path):       
         self.var_dict = {}
-        self.input_list = []
-        self.output_list = []
-        self.para_list = []
+        # self.port_list = []
+        # self.io_list = []
+        # self.io_lookup = []
+        # self.template_list = []
         with self.context, self.location, self.insertion:
             self.new_ip = hls.DeclareOp(ip_name)
             self.new_ip_meta = self.new_ip.meta.blocks.append()
@@ -55,18 +56,34 @@ class IPRegistration:
             self.include = hls.IncludeOp(ip_path)
         
     
-    def IO_Warpper(self):
+    def IO_Warpper(self, port_names, template_names, func_io_names):
+        self.port_list = []
+        self.template_list = []
+        self.func_io_list = []
+        self.func_lookup = []
         with self.context, self.location, self.insertion:
-            self.semantics = hls.SemanticsOp(self.input_list, self.output_list, self.para_list)
-            hls.semantics_init_args(self.semantics)
+            for self.cur_name in port_names: #register all data ports
+                self.port_list.append(self.var_dict[self.cur_name])
+                
+            for self.cur_name in template_names: #register all template ports
+                self.template_list.append(self.var_dict[self.cur_name])
+
+            for self.cur_name in func_io_names: #register all ports used in function
+                self.func_io_list.append(self.var_dict[self.cur_name].result)
+                self.func_lookup.append(self.cur_name)
+
+            self.semantics = hls.SemanticsOp(self.port_list, self.template_list, ArrayAttr.get([]))
+            self.semantics.init_args(self.func_io_list)
             self.semantics_blk = self.semantics.body.blocks[0]
             self.semantics_args = self.semantics_blk.arguments
             # return self.context, self.location, self.insertion, self.semantics, self.semantics_blk, self.semantics_args
 
 
-    def IP_Wrapper(self, func):
+    def IP_Wrapper(self, func, func_io_name):
         self.insertion = InsertionPoint.at_block_begin(self.semantics_blk)
         with self.context, self.location, self.insertion:
+            for self.cur_name in func_io_name:
+
             func(self.semantics_args[0], self.semantics_args[1], outs=[self.semantics_args[2]])
             self.result = self.semantics_blk.operations[0]
             hls.SemanticsOutputOp([self.result], [self.semantics_args[3]])
@@ -100,53 +117,107 @@ class IPRegistration:
                 self.ip_template_type = IndexType.get()
                 self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
                                             candidates=ArrayAttr.get([IntegerAttr.get(IndexType.get(), self.template_default_value)]))
+            self.template_list.append(self.var_dict[self.var_name])
     
-    def Add_Input(self, name, type, datatype, size=[], default_value=None): #To make reference to templates, input the variable name in str fashion in "datatype"
+    def Add_Port(self, portType, name, type, datatype, size=[], default_value=None):
         with self.context, self.location, self.insertion:
-            self.port_type = hls.PortType.get()
-            self.var_name = name
-            self.input_type = type
-            self.input_datatype = datatype
-            self.input_size = size
-            self.input_default_value = default_value
+            self.current_port_type = portType
+            if self.current_port_type == 'input':
+                self.port_type = hls.PortType.get()
+                self.var_name = name
+                self.input_type = type
+                self.input_datatype = datatype
+                self.input_size = size
+                self.input_default_value = default_value
 
 
-            if self.input_type == 'para': #Indicate this is input value, which is a number
-                self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
-                self.input_kind = hls.PortKindAttr.get(hls.PortKind.param)
-                if self.input_datatype in self.var_dict:
-                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
+                if self.input_type == 'para': #Indicate this is input value, which is a number
+                    self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
+                    self.input_kind = hls.PortKindAttr.get(hls.PortKind.param)
+                    if self.input_datatype in self.var_dict:
+                        self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
+                                                                  self.input_layout, self.input_kind, self.var_name)                   
+                if self.input_type == 'data': #Indicate this is a data access,
+                    self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
+                    self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
+                    self.size_item = []
+                    for item in self.input_size: #Check for pointing indexes for size
+                        self.size_item.append(self.var_dict[item])
+                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
                                                                   self.input_layout, self.input_kind, self.var_name)
+                    # self.io_list.append(self.var_dict[self.var_name])
+                    # self.io_lookup.append(self.var_name)
+            
+            if self.current_port_type == 'output':
+                self.port_type = hls.PortType.get()
+                self.var_name = name
+                self.output_type = type
+                self.output_datatype = datatype
+                self.output_size = size
+                self.output_default_value = default_value
+                if self.output_type == 'data': #Indicate this is a data access,
+                    self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.output_size)))
+                    self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
+                    self.size_item = []
+                    for item in self.output_size: #Check for pointing indexes for size
+                        self.size_item.append(self.var_dict[item])
+                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
+                                                                  self.output_layout, self.output_kind, self.var_name)
+                    # self.io_list.append(self.var_dict[self.var_name])
+                    # self.io_lookup.append(self.var_name)
+            
+            # self.port_list.append([self.var_dict[self.var_name]])
+
+
+
+
+
+    # def Add_Input(self, name, type, datatype, size=[], default_value=None): #To make reference to templates, input the variable name in str fashion in "datatype"
+    #     with self.context, self.location, self.insertion:
+    #         self.port_type = hls.PortType.get()
+    #         self.var_name = name
+    #         self.input_type = type
+    #         self.input_datatype = datatype
+    #         self.input_size = size
+    #         self.input_default_value = default_value
+
+
+    #         if self.input_type == 'para': #Indicate this is input value, which is a number
+    #             self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
+    #             self.input_kind = hls.PortKindAttr.get(hls.PortKind.param)
+    #             if self.input_datatype in self.var_dict:
+    #                 self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
+    #                                                               self.input_layout, self.input_kind, self.var_name)
 
 
                     
-            if self.input_type == 'data': #Indicate this is a data access,
-                self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
-                self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
-                self.size_item = []
-                for item in self.input_size: #Check for pointing indexes for size
-                    self.size_item.append(self.var_dict[item])
-                self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                  self.input_layout, self.input_kind, self.var_name)
-                self.input_list.append(self.var_dict[self.var_name])
+    #         if self.input_type == 'data': #Indicate this is a data access,
+    #             self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
+    #             self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
+    #             self.size_item = []
+    #             for item in self.input_size: #Check for pointing indexes for size
+    #                 self.size_item.append(self.var_dict[item])
+    #             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
+    #                                                               self.input_layout, self.input_kind, self.var_name)
+    #             self.input_list.append(self.var_dict[self.var_name])
 
-    def Add_Output(self, name, type, datatype, size=[], default_value=None):
-        with self.context, self.location, self.insertion:
-            self.port_type = hls.PortType.get()
-            self.var_name = name
-            self.output_type = type
-            self.output_datatype = datatype
-            self.output_size = size
-            self.output_default_value = default_value
-            if self.output_type == 'data': #Indicate this is a data access,
-                self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.output_size)))
-                self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
-                self.size_item = []
-                for item in self.output_size: #Check for pointing indexes for size
-                    self.size_item.append(self.var_dict[item])
-                self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                  self.output_layout, self.output_kind, self.var_name)
-                self.output_list.append(self.var_dict[self.var_name])
+    # def Add_Output(self, name, type, datatype, size=[], default_value=None):
+    #     with self.context, self.location, self.insertion:
+    #         self.port_type = hls.PortType.get()
+    #         self.var_name = name
+    #         self.output_type = type
+    #         self.output_datatype = datatype
+    #         self.output_size = size
+    #         self.output_default_value = default_value
+    #         if self.output_type == 'data': #Indicate this is a data access,
+    #             self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.output_size)))
+    #             self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
+    #             self.size_item = []
+    #             for item in self.output_size: #Check for pointing indexes for size
+    #                 self.size_item.append(self.var_dict[item])
+    #             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
+    #                                                               self.output_layout, self.output_kind, self.var_name)
+    #             self.output_list.append(self.var_dict[self.var_name])
 
          
 
