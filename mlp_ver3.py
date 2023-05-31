@@ -68,12 +68,12 @@ obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
 obj.Add_Port('input', 'p_m', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
-obj.Add_Port('input', 'alpha', 'para', 't_IndexType')
-obj.Add_Port('input', 'beta', 'para', 't_IndexType')
-obj.Add_Port('input', 'p_b', 'data', 't_IndexType', ['p_k', 'p_n'])
-obj.Add_Port('input', 'p_a', 'data', 't_IndexType', ['p_m', 'p_k'])
-obj.Add_Port('input', 'p_c', 'data', 't_IndexType', ['p_m', 'p_n'])
-obj.Add_Port('output', 'p_r', 'data', 't_IndexType', ['p_m', 'p_n'])
+obj.Add_Port('input', 'alpha', 'para', 't_DataType')
+obj.Add_Port('input', 'beta', 'para', 't_DataType')
+obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
+obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
+obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
+obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
 obj.IO_Warpper()
 
 @linalg_structured_op
@@ -88,11 +88,27 @@ module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_b'], ['input', 'p_a'], ['
 
 
 
-# insert = InsertionPoint.at_block_begin(semantics_blk)
-# with ctx, loc, insert:
-#     matmul_mono(semantics_args[1], semantics_args[0], outs=[semantics_args[2]])
-#     result = semantics_blk.operations[0]
-#     hls.SemanticsOutputOp([result], [semantics_args[3]])
+obj.Add_IP('scal', 'Vitis_Libraries/blas/L1/include/hw/xf_blas/scal.hpp')
+obj.Add_Template('t_DataType', 'type', 'float')
+obj.Add_Template('t_IndexType', 'type', 'int')
+obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
+obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
+obj.Add_Port('input', 'p_alpha', 'data', 't_DataType', ['0'])
+obj.Add_Port('input', 'p_x', 'data', 't_DataType', ['p_n'])
+obj.Add_Port('output', 'p_res', 'data', 't_DataType', ['p_n'])
+# obj.Add_Port('output', 'p_MANMADE', 'data', 't_DataType', ['p_n'])
+obj.IO_Warpper()
+
+@linalg_structured_op
+def copy_and_scale(p_alpha=ScalarDef(T),
+                   I=TensorDef(T, S.N),
+                   O=TensorDef(T, S.N, output=True)):
+  domain(D.n)
+  O[D.n] = I[D.n] * p_alpha
+
+module, ctx = obj.IP_Wrapper(copy_and_scale, [['input', 'p_alpha'], ['input', 'p_x'], ['output', 'p_res']], [['ip_output', 'p_res']])
+
+
 
 with ctx:
     pm = PassManager()

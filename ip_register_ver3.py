@@ -40,9 +40,10 @@ class IPRegistration:
         with self.context, self.location, self.insertion:
             self.lib = hls.LibraryOp(lib_name)
             self.lib_body = self.lib.body.blocks.append()
-        self.insertion = InsertionPoint.at_block_begin(self.lib_body)
+        
 
-    def Add_IP(self, ip_name, ip_path):       
+    def Add_IP(self, ip_name, ip_path): 
+        self.insertion = InsertionPoint.at_block_begin(self.lib_body)      
         self.var_dict = {}
         self.port_list = []
         self.io_list = []
@@ -131,18 +132,25 @@ class IPRegistration:
                 self.input_datatype = datatype
                 self.input_size = size
                 self.input_default_value = default_value
+
                 if self.input_type == 'para': #Indicate this is input value, which is a number
                     self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.input_kind = hls.PortKindAttr.get(hls.PortKind.param)
                     if self.input_datatype in self.var_dict:
                         self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                  self.input_layout, self.input_kind, self.var_name)                   
+                                                                  self.input_layout, self.input_kind, self.var_name) 
+                                          
                 if self.input_type == 'data': #Indicate this is a data access,
                     self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
                     self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
                     self.size_item = []
                     for item in self.input_size: #Check for pointing indexes for size
-                        self.size_item.append(self.var_dict[item])
+                            self.size_item.append(self.var_dict[item])
+                    # if self.input_size[0] != '0':
+                    #     for item in self.input_size: #Check for pointing indexes for size
+                    #         self.size_item.append(self.var_dict[item])
+                    # else:
+                    #     self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
                                                                   self.input_layout, self.input_kind, self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])
@@ -155,6 +163,7 @@ class IPRegistration:
                 self.output_datatype = datatype
                 self.output_size = size
                 self.output_default_value = default_value
+
                 if self.output_type == 'data': #Indicate this is a data access,
                     self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.output_size)))
                     self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
