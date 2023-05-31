@@ -157,6 +157,7 @@ torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
     # semantics_args = semantics_blk.arguments
 
 from ip_register_ver2 import IPRegistration
+
 obj = IPRegistration(torch_mlir_module)
 obj.Add_Lib('vitis')
 obj.Add_IP('gemm', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")

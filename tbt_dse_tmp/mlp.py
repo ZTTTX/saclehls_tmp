@@ -9,7 +9,7 @@ from scalehls.ir import AffineMapAttr
 from scalehls.ir import AffineMap
 from scalehls.ir import AffineExpr, AffineExprList
 from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr
-from scalehls.ir import IntegerAttr
+from scalehls.ir import IntegerAttr, StringAttr, FloatAttr
 from scalehls.ir import ArrayAttr
 from scalehls.ir import F32Type, IndexType
 from scalehls.ir import TypeAttr
@@ -25,7 +25,6 @@ import torch_mlir
 from scalehls.passmanager import PassManager
 import io
 import shutil
-
 
 
 class MLP(nn.Module):
@@ -64,7 +63,7 @@ with ctx:
     insert = InsertionPoint.at_block_begin(module.body)
     loc = Location.unknown()
 
-# # Create a new "vitis" library.
+# Create a new "vitis" library.
 # with ctx, loc, insert:
 #     lib = hls.LibraryOp("vitis")
 #     lib_body = lib.body.blocks.append()
@@ -77,8 +76,8 @@ with ctx:
 
 # insert = InsertionPoint.at_block_begin(gemm_ip_meta)
 # with ctx, loc, insert:
-#     include = hls.IncludeOp(
-#         "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")
+#     include = hls.IncludeOp(ArrayAttr.get(
+#         [StringAttr.get("Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")]))
 
 #     template_kind = hls.ParamKindAttr.get(hls.ParamKind.template)
 #     type_type = hls.TypeType.get()
@@ -102,10 +101,10 @@ with ctx:
 #     p_n = hls.PortOp(port_type, itype, [], param_layout, param_kind, "p_n")
 #     p_k = hls.PortOp(port_type, itype, [], param_layout, param_kind, "p_k")
 
-#     p_alpha = hls.PortOp(port_type, dtype, [],
-#                          param_layout, param_kind, "p_alpha")
-#     p_beta = hls.PortOp(port_type, dtype, [],
-#                         param_layout, param_kind, "p_beta")
+#     p_alpha = hls.PortOp(port_type, dtype, [], param_layout, param_kind,
+#                          "p_alpha", value=FloatAttr.get(F32Type.get(), 1.0))
+#     p_beta = hls.PortOp(port_type, dtype, [], param_layout, param_kind,
+#                         "p_beta", value=FloatAttr.get(F32Type.get(), 0.0))
 
 #     input_layout = AffineMapAttr.get(AffineMap.get_identity(2))
 #     input_kind = hls.PortKindAttr.get(hls.PortKind.input)
@@ -121,24 +120,25 @@ with ctx:
 #     p_r = hls.PortOp(port_type, dtype, [
 #                      p_m, p_n], output_layout, output_kind, "p_r")
 
-#     semantics = hls.SemanticsOp([p_a, p_b, p_c], [p_r], [])
-#     hls.semantics_init_args(semantics)
+#     semantics = hls.SemanticsOp([p_a, p_b, p_c, p_r, p_m, p_n, p_k, p_alpha, p_beta], [
+#                                 dtype, itype, buffer_dim, par_entries, max_size_c], ArrayAttr.get([]))
+#     semantics.init_args([p_a.result, p_b.result, p_c.result, p_r.result])
 #     semantics_blk = semantics.body.blocks[0]
 #     semantics_args = semantics_blk.arguments
 
 
 # @linalg_structured_op
 # def matmul_mono(
-#         A=TensorDef(T, S.M, S.K),
 #         B=TensorDef(T, S.K, S.N),
+#         A=TensorDef(T, S.M, S.K),
 #         C=TensorDef(T, S.M, S.N, output=True)):
 #     domain(D.m, D.n, D.k)
-#     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
+#     C[D.m, D.n] += B[D.k, D.n] * A[D.m, D.k]
 
 
 # insert = InsertionPoint.at_block_begin(semantics_blk)
 # with ctx, loc, insert:
-#     matmul_mono(semantics_args[0], semantics_args[1], outs=[semantics_args[2]])
+#     matmul_mono(semantics_args[1], semantics_args[0], outs=[semantics_args[2]])
 #     result = semantics_blk.operations[0]
 #     hls.SemanticsOutputOp([result], [semantics_args[3]])
 
@@ -146,7 +146,7 @@ with ctx:
     pm = PassManager()
     scalehls.add_linalg_transform_passes(pm)
     scalehls.add_convert_linalg_to_dataflow_passes(pm)
-    # scalehls.add_generate_design_space_passes(pm)
+    scalehls.add_generate_design_space_passes(pm)
     pm.run(module.operation)  # type: ignore
 
 # for space in module.body.operations:
@@ -156,36 +156,35 @@ with ctx:
 #         def get_params(op: Operation):
 #             param = op.opview
 #             if (isinstance(param, hls.ParamOp)):
-#                 print(param)
 #                 params.append(param)
 
 #         scalehls.walk_operation(space.operation, get_params)
 #         with ctx:
 #             for param in params:
 #                 if param.kind == hls.ParamKind.tile:
-#                     param.value = IntegerAttr.get(IndexType.get(), 32)
+#                     # For now, we always set tile size to 0.
+#                     param.value = IntegerAttr.get(IndexType.get(), 0)
 #                 elif param.kind == hls.ParamKind.parallel:
 #                     param.value = IntegerAttr.get(IndexType.get(), 2)
 #                 elif param.kind == hls.ParamKind.template:
 #                     param.value = IntegerAttr.get(IndexType.get(), 4)
 #                 elif param.kind == hls.ParamKind.impl:
-#                     param.value = next(
-#                         candidate for candidate in param.candidates)
+#                     *_, param.value = param.candidates
 
-# addImplementDesignSpace()
+# with ctx:
+#     pm = PassManager.parse(
+#         "builtin.module(scalehls-implement-task-design-space)")
+#     pm.run(module.operation)  # type: ignore
 
 with ctx:
+    pm = PassManager()
     scalehls.add_comprehensive_bufferize_passes(pm)
+    scalehls.add_lower_dataflow_passes(pm)
+    scalehls.add_convert_dataflow_to_func_passes(pm)
     pm.run(module.operation)  # type: ignore
-    pm1 = PassManager.parse("builtin.module(canonicalize)")
-    pm1.run(module.operation)  # type: ignore
-    pm2 = PassManager()
-    scalehls.add_lower_dataflow_passes(pm2)
-    scalehls.add_convert_dataflow_to_func_passes(pm2)
-    pm2.run(module.operation)  # type: ignore
 
-# print(module)
+print(module)
 
-buf = io.StringIO()
-scalehls.emit_hlscpp(module, buf)
-print(buf.getvalue())
+# buf = io.StringIO()
+# scalehls.emit_hlscpp(module, buf)
+# print(buf.getvalue())

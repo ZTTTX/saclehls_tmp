@@ -37,6 +37,7 @@ class IPRegistration:
             self.location = Location.unknown()
 
     def Add_Lib(self, lib_name):
+        self.insertion = InsertionPoint.at_block_begin(self.module.body)
         with self.context, self.location, self.insertion:
             self.lib = hls.LibraryOp(lib_name)
             self.lib_body = self.lib.body.blocks.append()
@@ -144,13 +145,13 @@ class IPRegistration:
                     self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
                     self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
                     self.size_item = []
-                    for item in self.input_size: #Check for pointing indexes for size
-                            self.size_item.append(self.var_dict[item])
-                    # if self.input_size[0] != '0':
-                    #     for item in self.input_size: #Check for pointing indexes for size
+                    # for item in self.input_size: #Check for pointing indexes for size
                     #         self.size_item.append(self.var_dict[item])
-                    # else:
-                    #     self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
+                    if self.input_size[0] != '0':
+                        for item in self.input_size: #Check for pointing indexes for size
+                            self.size_item.append(self.var_dict[item])
+                    else:
+                        self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
                                                                   self.input_layout, self.input_kind, self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])

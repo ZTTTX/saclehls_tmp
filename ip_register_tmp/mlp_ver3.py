@@ -78,35 +78,62 @@ obj.IO_Warpper()
 
 @linalg_structured_op
 def matmul_mono(
-        B=TensorDef(T, S.K, S.N),
         A=TensorDef(T, S.M, S.K), 
+        B=TensorDef(T, S.K, S.N),
         C=TensorDef(T, S.M, S.N, output=True)):
     domain(D.m, D.n, D.k)
     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
-module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_b'], ['input', 'p_a'], ['output', 'p_c']], [['ip_output', 'p_r']])
+module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['output', 'p_c']], [['ip_output', 'p_r']])
 
 
-
-obj.Add_IP('scal', 'Vitis_Libraries/blas/L1/include/hw/xf_blas/scal.hpp')
-obj.Add_Template('t_DataType', 'type', 'float')
-obj.Add_Template('t_IndexType', 'type', 'int')
-obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
-obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
-obj.Add_Port('input', 'p_alpha', 'data', 't_DataType', ['0'])
-obj.Add_Port('input', 'p_x', 'data', 't_DataType', ['p_n'])
-obj.Add_Port('output', 'p_res', 'data', 't_DataType', ['p_n'])
-# obj.Add_Port('output', 'p_MANMADE', 'data', 't_DataType', ['p_n'])
+#Dummy lib and ip test
+obj.Add_Lib('vitis_DUMMY')
+obj.Add_IP('gemm_DUMMY', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm_DUMMY.hpp")
+obj.Add_Template('t_DataType_1', 'type', 'float')
+obj.Add_Template('t_IndexType_1', 'type', 'int')
+obj.Add_Template('k_KBufferDim_1', 'para', 'int', [], 32)
+obj.Add_Template('t_ParEntries_1', 'para', 'int', [], 2)
+obj.Add_Template('t_MaxSizeC_1', 'para', 'int', [], 1024)
+obj.Add_Port('input', 'p_m_1', 'para', 't_IndexType_1')
+obj.Add_Port('input', 'p_n_1', 'para', 't_IndexType_1')
+obj.Add_Port('input', 'p_k_1', 'para', 't_IndexType_1')
+obj.Add_Port('input', 'alpha_1', 'para', 't_DataType_1')
+obj.Add_Port('input', 'beta_1', 'para', 't_DataType_1')
+obj.Add_Port('input', 'p_b_1', 'data', 't_DataType_1', ['p_k_1', 'p_n_1'])
+obj.Add_Port('input', 'p_a_1', 'data', 't_DataType_1', ['p_m_1', 'p_k_1'])
+obj.Add_Port('input', 'p_c_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
+obj.Add_Port('output', 'p_r_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
 obj.IO_Warpper()
 
 @linalg_structured_op
-def copy_and_scale(p_alpha=ScalarDef(T),
-                   I=TensorDef(T, S.N),
-                   O=TensorDef(T, S.N, output=True)):
-  domain(D.n)
-  O[D.n] = I[D.n] * p_alpha
+def matmul_mono(
+        A=TensorDef(T, S.M, S.K), 
+        B=TensorDef(T, S.K, S.N),
+        C=TensorDef(T, S.M, S.N, output=True)):
+    domain(D.m, D.n, D.k)
+    C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
-module, ctx = obj.IP_Wrapper(copy_and_scale, [['input', 'p_alpha'], ['input', 'p_x'], ['output', 'p_res']], [['ip_output', 'p_res']])
+module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a_1'], ['input', 'p_b_1'], ['output', 'p_c_1']], [['ip_output', 'p_r_1']])
+
+
+# obj.Add_IP('scal', 'Vitis_Libraries/blas/L1/include/hw/xf_blas/scal.hpp')
+# obj.Add_Template('t_DataType', 'type', 'float')
+# obj.Add_Template('t_IndexType', 'type', 'int')
+# obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
+# obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
+# obj.Add_Port('input', 'p_alpha', 'data', 't_DataType', ['0'])
+# obj.Add_Port('input', 'p_x', 'data', 't_DataType', ['p_n'])
+# obj.Add_Port('output', 'p_res', 'data', 't_DataType', ['p_n'])
+# obj.IO_Warpper()
+
+# @linalg_structured_op
+# def copy_and_scale(p_alpha=ScalarDef(T),
+#                    I=TensorDef(T, S.N),
+#                    O=TensorDef(T, S.N, output=True)):
+#   O[D.n] = I[D.n] * p_alpha
+
+# module, ctx = obj.IP_Wrapper(copy_and_scale, [['input', 'p_alpha'], ['input', 'p_x'], ['output', 'p_res']], [['ip_output', 'p_res']])
 
 
 
