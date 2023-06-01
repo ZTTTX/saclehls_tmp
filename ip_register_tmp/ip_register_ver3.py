@@ -110,12 +110,11 @@ class IPRegistration:
                     self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, 
                                             self.ip_template_kind, self.var_name, 
                                             candidates=ArrayAttr.get([TypeAttr.get(F32Type.get())]))
-                    
                 if self.template_datatype == 'int':
                     self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, 
                                             self.ip_template_kind, self.var_name, 
                                             candidates=ArrayAttr.get([TypeAttr.get(IndexType.get())]))
-                            
+
             if self.template_type == 'para': #Indicate this template para is an integer
                 self.ip_template_type = IndexType.get()
                 self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
@@ -138,8 +137,12 @@ class IPRegistration:
                     self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.input_kind = hls.PortKindAttr.get(hls.PortKind.param)
                     if self.input_datatype in self.var_dict:
-                        self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                  self.input_layout, self.input_kind, self.var_name) 
+                        if default_value == None:
+                            self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
+                                                                    self.input_layout, self.input_kind, self.var_name) 
+                        else:
+                            self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
+                                                                    self.input_layout, self.input_kind, self.var_name, value=FloatAttr.get(F32Type.get(), default_value)) 
                                           
                 if self.input_type == 'data': #Indicate this is a data access,
                     self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))

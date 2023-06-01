@@ -68,8 +68,8 @@ obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
 obj.Add_Port('input', 'p_m', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
-obj.Add_Port('input', 'alpha', 'para', 't_DataType')
-obj.Add_Port('input', 'beta', 'para', 't_DataType')
+obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
+obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
 obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
 obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
 obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
@@ -87,34 +87,34 @@ def matmul_mono(
 module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['output', 'p_c']], [['ip_output', 'p_r']])
 
 
-#Dummy lib and ip test
-obj.Add_Lib('vitis_DUMMY')
-obj.Add_IP('gemm_DUMMY', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm_DUMMY.hpp")
-obj.Add_Template('t_DataType_1', 'type', 'float')
-obj.Add_Template('t_IndexType_1', 'type', 'int')
-obj.Add_Template('k_KBufferDim_1', 'para', 'int', [], 32)
-obj.Add_Template('t_ParEntries_1', 'para', 'int', [], 2)
-obj.Add_Template('t_MaxSizeC_1', 'para', 'int', [], 1024)
-obj.Add_Port('input', 'p_m_1', 'para', 't_IndexType_1')
-obj.Add_Port('input', 'p_n_1', 'para', 't_IndexType_1')
-obj.Add_Port('input', 'p_k_1', 'para', 't_IndexType_1')
-obj.Add_Port('input', 'alpha_1', 'para', 't_DataType_1')
-obj.Add_Port('input', 'beta_1', 'para', 't_DataType_1')
-obj.Add_Port('input', 'p_b_1', 'data', 't_DataType_1', ['p_k_1', 'p_n_1'])
-obj.Add_Port('input', 'p_a_1', 'data', 't_DataType_1', ['p_m_1', 'p_k_1'])
-obj.Add_Port('input', 'p_c_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
-obj.Add_Port('output', 'p_r_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
-obj.IO_Warpper()
+# #Dummy lib and ip test
+# obj.Add_Lib('vitis_DUMMY')
+# obj.Add_IP('gemm_DUMMY', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm_DUMMY.hpp")
+# obj.Add_Template('t_DataType_1', 'type', 'float')
+# obj.Add_Template('t_IndexType_1', 'type', 'int')
+# obj.Add_Template('k_KBufferDim_1', 'para', 'int', [], 32)
+# obj.Add_Template('t_ParEntries_1', 'para', 'int', [], 2)
+# obj.Add_Template('t_MaxSizeC_1', 'para', 'int', [], 1024)
+# obj.Add_Port('input', 'p_m_1', 'para', 't_IndexType_1')
+# obj.Add_Port('input', 'p_n_1', 'para', 't_IndexType_1')
+# obj.Add_Port('input', 'p_k_1', 'para', 't_IndexType_1')
+# obj.Add_Port('input', 'alpha_1', 'para', 't_DataType_1')
+# obj.Add_Port('input', 'beta_1', 'para', 't_DataType_1')
+# obj.Add_Port('input', 'p_b_1', 'data', 't_DataType_1', ['p_k_1', 'p_n_1'])
+# obj.Add_Port('input', 'p_a_1', 'data', 't_DataType_1', ['p_m_1', 'p_k_1'])
+# obj.Add_Port('input', 'p_c_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
+# obj.Add_Port('output', 'p_r_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
+# obj.IO_Warpper()
 
-@linalg_structured_op
-def matmul_mono(
-        A=TensorDef(T, S.M, S.K), 
-        B=TensorDef(T, S.K, S.N),
-        C=TensorDef(T, S.M, S.N, output=True)):
-    domain(D.m, D.n, D.k)
-    C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
+# @linalg_structured_op
+# def matmul_mono(
+#         A=TensorDef(T, S.M, S.K), 
+#         B=TensorDef(T, S.K, S.N),
+#         C=TensorDef(T, S.M, S.N, output=True)):
+#     domain(D.m, D.n, D.k)
+#     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
-module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a_1'], ['input', 'p_b_1'], ['output', 'p_c_1']], [['ip_output', 'p_r_1']])
+# module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a_1'], ['input', 'p_b_1'], ['output', 'p_c_1']], [['ip_output', 'p_r_1']])
 
 
 # obj.Add_IP('scal', 'Vitis_Libraries/blas/L1/include/hw/xf_blas/scal.hpp')
@@ -171,12 +171,12 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-# with ctx:
-#     pm = PassManager()
-#     scalehls.add_comprehensive_bufferize_passes(pm)
-#     scalehls.add_lower_dataflow_passes(pm)
-#     scalehls.add_convert_dataflow_to_func_passes(pm)
-#     pm.run(module.operation)  # type: ignore
+with ctx:
+    pm = PassManager()
+    scalehls.add_comprehensive_bufferize_passes(pm)
+    scalehls.add_lower_dataflow_passes(pm)
+    scalehls.add_convert_dataflow_to_func_passes(pm)
+    pm.run(module.operation)  # type: ignore
 
 print(module)
 
