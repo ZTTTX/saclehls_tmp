@@ -55,55 +55,25 @@ torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
                                        output_type="linalg-on-tensors")
 
 
-from ip_register_ver3 import IPRegistration
+# from ip_register_ver3 import IPRegistration
 
-obj = IPRegistration(torch_mlir_module)
-obj.Add_Lib('vitis')
-obj.Add_IP('gemm', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")
-obj.Add_Template('t_DataType', 'type', 'float')
-obj.Add_Template('t_IndexType', 'type', 'int')
-obj.Add_Template('k_KBufferDim', 'para', 'int', [], 32)
-obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
-obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
-obj.Add_Port('input', 'p_m', 'para', 't_IndexType')
-obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
-obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
-obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
-obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
-obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
-obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
-obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
-obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
-obj.IO_Warpper()
-
-@linalg_structured_op
-def matmul_mono(
-        A=TensorDef(T, S.M, S.K), 
-        B=TensorDef(T, S.K, S.N),
-        C=TensorDef(T, S.M, S.N, output=True)):
-    domain(D.m, D.n, D.k)
-    C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
-
-module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['output', 'p_c']], [['ip_output', 'p_r']])
-
-
-# #Dummy lib and ip test
-# obj.Add_Lib('vitis_DUMMY')
-# obj.Add_IP('gemm_DUMMY', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm_DUMMY.hpp")
-# obj.Add_Template('t_DataType_1', 'type', 'float')
-# obj.Add_Template('t_IndexType_1', 'type', 'int')
-# obj.Add_Template('k_KBufferDim_1', 'para', 'int', [], 32)
-# obj.Add_Template('t_ParEntries_1', 'para', 'int', [], 2)
-# obj.Add_Template('t_MaxSizeC_1', 'para', 'int', [], 1024)
-# obj.Add_Port('input', 'p_m_1', 'para', 't_IndexType_1')
-# obj.Add_Port('input', 'p_n_1', 'para', 't_IndexType_1')
-# obj.Add_Port('input', 'p_k_1', 'para', 't_IndexType_1')
-# obj.Add_Port('input', 'alpha_1', 'para', 't_DataType_1')
-# obj.Add_Port('input', 'beta_1', 'para', 't_DataType_1')
-# obj.Add_Port('input', 'p_b_1', 'data', 't_DataType_1', ['p_k_1', 'p_n_1'])
-# obj.Add_Port('input', 'p_a_1', 'data', 't_DataType_1', ['p_m_1', 'p_k_1'])
-# obj.Add_Port('input', 'p_c_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
-# obj.Add_Port('output', 'p_r_1', 'data', 't_DataType_1', ['p_m_1', 'p_n_1'])
+# obj = IPRegistration(torch_mlir_module)
+# obj.Add_Lib('vitis')
+# obj.Add_IP('gemm', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")
+# obj.Add_Template('t_DataType', 'type', 'float')
+# obj.Add_Template('t_IndexType', 'type', 'int')
+# obj.Add_Template('k_KBufferDim', 'para', 'int', [], 32)
+# obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
+# obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
+# obj.Add_Port('input', 'p_m', 'para', 't_IndexType')
+# obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
+# obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
+# obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
+# obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
+# obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
+# obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
+# obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
+# obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
 # obj.IO_Warpper()
 
 # @linalg_structured_op
@@ -114,7 +84,7 @@ module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['
 #     domain(D.m, D.n, D.k)
 #     C[D.m, D.n] += A[D.m, D.k] * B[D.k, D.n]
 
-# module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a_1'], ['input', 'p_b_1'], ['output', 'p_c_1']], [['ip_output', 'p_r_1']])
+# module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['output', 'p_c']], [['ip_output', 'p_r']])
 
 
 # obj.Add_IP('scal', 'Vitis_Libraries/blas/L1/include/hw/xf_blas/scal.hpp')
@@ -135,7 +105,13 @@ module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['
 
 # module, ctx = obj.IP_Wrapper(copy_and_scale, [['input', 'p_alpha'], ['input', 'p_x'], ['output', 'p_res']], [['ip_output', 'p_res']])
 
+ctx = Context()
+scalehls.register_everything(ctx)
 
+with ctx:
+    module = Module.parse(str(torch_mlir_module))
+    insert = InsertionPoint.at_block_begin(module.body)
+    loc = Location.unknown()
 
 with ctx:
     pm = PassManager()
@@ -158,7 +134,7 @@ for space in module.body.operations:
             for param in params:
                 if param.kind == hls.ParamKind.tile:
                     # For now, we always set tile size to 0.
-                    param.value = IntegerAttr.get(IndexType.get(), 0)
+                    param.value = IntegerAttr.get(IndexType.get(), 8)
                 elif param.kind == hls.ParamKind.parallel:
                     param.value = IntegerAttr.get(IndexType.get(), 2)
                 elif param.kind == hls.ParamKind.template:
@@ -171,12 +147,12 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-with ctx:
-    pm = PassManager()
-    scalehls.add_comprehensive_bufferize_passes(pm)
-    scalehls.add_lower_dataflow_passes(pm)
-    scalehls.add_convert_dataflow_to_func_passes(pm)
-    pm.run(module.operation)  # type: ignore
+# with ctx:
+#     pm = PassManager()
+#     scalehls.add_comprehensive_bufferize_passes(pm)
+#     scalehls.add_lower_dataflow_passes(pm)
+#     scalehls.add_convert_dataflow_to_func_passes(pm)
+#     pm.run(module.operation)  # type: ignore
 
 print(module)
 
