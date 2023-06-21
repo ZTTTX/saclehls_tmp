@@ -37,6 +37,7 @@ class IPRegistration:
             self.location = Location.unknown()
 
     def Add_Lib(self, lib_name):
+        self.insertion = InsertionPoint.at_block_begin(self.module.body)
         with self.context, self.location, self.insertion:
             self.lib = hls.LibraryOp(lib_name)
             self.lib_body = self.lib.body.blocks.append()

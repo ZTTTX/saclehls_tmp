@@ -108,8 +108,18 @@ with ctx, loc, insert:
 
     input_layout = AffineMapAttr.get(AffineMap.get_identity(2))
     input_kind = hls.PortKindAttr.get(hls.PortKind.input)
+
+
+    # p_aMoveRule = lambda d0, d1, s0: (d0 / s0, d1 / s0, d0 % s0, d1 % s0)
+    d0 = AffineDimExpr.get(0)
+    d1 = AffineDimExpr.get(1)
+    s0 = AffineSymbolExpr.get(0)
+    div0 = AffineCeilDivExpr.get(d0, s0)
+    div1 = AffineCeilDivExpr.get(d1, s0)
+    input_layout_a = AffineMapAttr.get(AffineMap.get(2, 1, [div0, div1]))
+
     p_a = hls.PortOp(port_type, dtype, [
-                     p_m, p_k], input_layout, input_kind, "p_a")
+                     p_m, p_k], input_layout_a, input_kind, "p_a")
     p_b = hls.PortOp(port_type, dtype, [
                      p_k, p_n], input_layout, input_kind, "p_b")
     p_c = hls.PortOp(port_type, dtype, [
@@ -176,12 +186,12 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-with ctx:
-    pm = PassManager()
-    scalehls.add_comprehensive_bufferize_passes(pm)
-    scalehls.add_lower_dataflow_passes(pm)
-    scalehls.add_convert_dataflow_to_func_passes(pm)
-    pm.run(module.operation)  # type: ignore
+# with ctx:
+#     pm = PassManager()
+#     scalehls.add_comprehensive_bufferize_passes(pm)
+#     scalehls.add_lower_dataflow_passes(pm)
+#     scalehls.add_convert_dataflow_to_func_passes(pm)
+#     pm.run(module.operation)  # type: ignore
 
 print(module)
 

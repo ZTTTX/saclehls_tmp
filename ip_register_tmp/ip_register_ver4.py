@@ -8,7 +8,7 @@ from scalehls.dialects import linalg
 from scalehls.ir import AffineMapAttr
 from scalehls.ir import AffineMap
 from scalehls.ir import AffineExpr, AffineExprList
-from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr
+from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr, AffineAddExpr
 from scalehls.ir import IntegerAttr, StringAttr, FloatAttr
 from scalehls.ir import ArrayAttr
 from scalehls.ir import F32Type, IndexType
@@ -25,6 +25,15 @@ import torch_mlir
 from scalehls.passmanager import PassManager
 import io
 import shutil
+import ast
+import inspect
+import astor
+
+# import sys
+# import os
+# sys.path.append("/home/miao/scalehls/build/tools/scalehls/python_packages/dialect")
+# from ._ods_common import _cext as _ods_cext
+# from ._ods_common import extend_opview_class as _ods_extend_opview_class, segmented_accessor as _ods_segmented_accessor, equally_sized_accessor as _ods_equally_sized_accessor, get_default_loc_context as _ods_get_default_loc_context, get_op_result_or_value as _get_op_result_or_value, get_op_results_or_values as _get_op_results_or_values
 
 class IPRegistration:
 
@@ -120,7 +129,7 @@ class IPRegistration:
                                             candidates=ArrayAttr.get([IntegerAttr.get(IndexType.get(), self.template_default_value)]))
             self.template_list.append(self.var_dict[self.var_name])
     
-    def Add_Port(self, portType, name, type, datatype, size=[], default_value=None):
+    def Add_Port(self, portType, name, type, datatype, size=[], default_value=None, dataMoveRule=None):
         with self.context, self.location, self.insertion:
             self.current_port_type = portType
 
@@ -158,7 +167,56 @@ class IPRegistration:
                                                                   self.input_layout, self.input_kind, self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
-            
+                
+                if self.input_type == 'data_s':
+                    self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
+                    self.input_kind = hls.PortKindAttr.get(hls.PortKind.input)
+                    self.size_item = []
+                    if self.input_size[0] != '0':
+                        for item in self.input_size: #Check for pointing indexes for size
+                            self.size_item.append(self.var_dict[item])
+                    else:
+                        self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
+                        
+                    if dataMoveRule != None:
+                        self.symbol_ref = []
+                        self.const_ref = []
+                        lambdaFunc = dataMoveRule
+                        inputVariables, outputVariables = self.get_lambda_variables(lambdaFunc)
+                        input_dict = {}
+                        # symbol_ref_dict = {}
+                        output_list = []
+                        dCount = 0
+                        sCount = 0
+                        rCount = 0
+                        for i in range(len(inputVariables)):
+                            item = inputVariables[i]
+                            if item[0] == 'd':             
+                                input_dict[item] = 'AffineDimExpr.get(int(' + item[1:] + '))'
+                                dCount = dCount + 1
+                            if item[0] == 's':
+                                input_dict[item] = 'AffineSymbolExpr.get(int(' + item[1:] + '))'
+                                # symbol_ref_dict[item] = lambdaFunc.__defaults__[sCount]
+                                self.symbol_ref.append(self.var_dict[lambdaFunc.__defaults__[sCount + rCount]])
+                                sCount = sCount + 1
+                            if item[0] == 'r':
+                                input_dict[item] = 'AffineSymbolExpr.get(int(' + item[1:] + '))'
+                                rCount = rCount + 1
+
+                        mappedOutputStr = self.process_output_variables(outputVariables, input_dict)
+                        for i in range(len(mappedOutputStr)):
+                            resultName = 'r' + str(i)
+                            execStr = resultName + '=' + mappedOutputStr[i]
+                            exec(execStr)
+                            output_list.append(locals()[resultName])
+                        self.input_layout = AffineMapAttr.get(AffineMap.get(dCount, sCount + rCount, output_list))
+
+                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
+                                                                self.input_layout, self.input_kind, self.var_name, self.symbol_ref)
+
+                    self.io_list.append(self.var_dict[self.var_name])
+                    self.io_lookup.append(self.var_name)
+
             if self.current_port_type == 'output':
                 self.port_type = hls.PortType.get()
                 self.var_name = name
@@ -180,8 +238,51 @@ class IPRegistration:
             
             self.port_list.append(self.var_dict[self.var_name])
 
+    def get_lambda_variables(self, lambda_func):
+        parameter_names = list(inspect.signature(lambda_func).parameters.keys())
+        lambda_source = inspect.getsource(lambda_func)
+        lambda_ast = ast.parse(lambda_source)
+        lambda_body = astor.to_source(lambda_ast.body[0].value).split(':')[1].split(',')
+        expressions = [s.replace("(", "").replace(")", "").replace("\n", "") for s in lambda_body]
 
+        return parameter_names, expressions
 
+    def process_output_variables(self, output_variables, variable_mapping):
+        outList = []
+        for curStr in output_variables:
+            sparsedList = curStr.split(' ')
+            replacedStr = '' 
+            cur_expr_dict = {}
+            eval_ref = {"cur_expr_dict":cur_expr_dict}
+            for i in range(len(sparsedList)):
+                item = sparsedList[i] 
+                if item in variable_mapping:
+                    cur_expr_dict[item] = map_expr(variable_mapping[item])
+                    replacedStr = replacedStr + 'cur_expr_dict[' + item + ']'
+                    eval_ref[item] = item
+                else:
+                    replacedStr = replacedStr + item
+            outList.append(str(eval(replacedStr, eval_ref)))
+        return outList
+
+class map_expr:
+    def __init__(self, arg):
+        self.arg = arg
+        
+    def __repr__(self):
+        return str(self.arg)
+    
+    def __add__(self, other):
+        return map_expr("AffineAddExpr.get(" + str(self.arg) + ", " + str(other) + ")")
+    
+    def __mul__(self, other):
+        return map_expr("AffineMulExpr.get(" + str(self.arg) + ", " + str(other) + ")")
+    
+    def __truediv__(self, other):
+        return map_expr("AffineCeilDivExpr.get(" + str(self.arg) + ", " + str(other) + ")")
+    
+    def __mod__(self, other):
+        return map_expr("AffineModExpr.get(" + str(self.arg) + ", " + str(other) + ")")
 
 
    

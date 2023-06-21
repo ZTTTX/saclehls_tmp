@@ -36,7 +36,7 @@ If entry type is "type", it will register this para with a TypeAttribute, with t
 
 If entry type is "para", it will register the parameter assuming it is integer (FOR NOW), size of the entry is assumed to be []. It will take in the first in the default value list as its default value. It can only take one default value (FOR NOW)
 
-### If entry is function is input
+### If entry is function is input/output
 
 If entry type is "para". We generate it as a portOP. You can refer to any previous para by using key word var_i, where i is the ith para in the para list.
 

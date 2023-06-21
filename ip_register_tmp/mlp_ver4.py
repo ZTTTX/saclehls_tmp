@@ -40,7 +40,7 @@ class MLP(nn.Module):
             # nn.ReLU(),
             # nn.Linear(64, 32),
             # nn.ReLU(),
-            nn.Linear(32 * 32 * 1, 10)
+            nn.Linear(32 * 32 * 1, 10),
             # nn.ReLU()
         )
 
@@ -57,7 +57,8 @@ model.train(False)
 torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 1, 32, 32),
                                        output_type="linalg-on-tensors")
 
-from ip_register_ver3 import IPRegistration
+
+from ip_register_ver4 import IPRegistration
 
 obj = IPRegistration(torch_mlir_module)
 obj.Add_Lib('vitis')
@@ -72,8 +73,13 @@ obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
 obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
 obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
+
+p_aMoveRule = lambda d0, d1, s0='k_KBufferDim': (d1 + d0 / s0, d1 / s0, d0 % s0, d1 % s0)
+obj.Add_Port('input', 'p_a', 'data_s', 't_DataType', ['p_m', 'p_k'], dataMoveRule=p_aMoveRule)
+
+# obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
+
 obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
-obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
 obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
 obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
 obj.IO_Warpper()
@@ -89,6 +95,18 @@ def matmul_mono(
 module, ctx = obj.IP_Wrapper(matmul_mono, [['input','p_a'], ['input', 'p_b'], ['output', 'p_c']], [['ip_output', 'p_r']])
 
 
+#===================================================================================================
+
+
+# ctx = Context()
+# scalehls.register_everything(ctx)
+
+# with ctx:
+#     module = Module.parse(str(torch_mlir_module))
+#     insert = InsertionPoint.at_block_begin(module.body)
+#     loc = Location.unknown()
+
+#===================================================================================================
 with ctx:
     pm = PassManager()
     scalehls.add_linalg_transform_passes(pm)
