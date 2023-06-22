@@ -36,11 +36,11 @@ class MLP(nn.Module):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(32 * 32 * 3, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 10)
+            nn.Linear(32 * 32 * 1, 10),
+            # nn.ReLU(),
+            # nn.Linear(64, 32),
+            # nn.ReLU(),
+            # nn.Linear(32, 10)
         )
 
     def forward(self, x):
@@ -51,7 +51,7 @@ class MLP(nn.Module):
 model = MLP()
 model.train(False)
 
-torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
+torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 1, 32, 32),
                                        output_type="linalg-on-tensors")
 
 ctx = Context()
@@ -97,13 +97,13 @@ with ctx, loc, insert:
     port_type = hls.PortType.get()
     param_layout = AffineMapAttr.get(AffineMap.get_empty())
     param_kind = hls.PortKindAttr.get(hls.PortKind.param)
-    p_m = hls.PortOp(port_type, itype, [], param_layout, param_kind, "p_m")
-    p_n = hls.PortOp(port_type, itype, [], param_layout, param_kind, "p_n")
-    p_k = hls.PortOp(port_type, itype, [], param_layout, param_kind, "p_k")
+    p_m = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_m")
+    p_n = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_n")
+    p_k = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_k")
 
-    p_alpha = hls.PortOp(port_type, dtype, [], param_layout, param_kind,
+    p_alpha = hls.PortOp(port_type, dtype, [], param_layout, param_kind, 
                          "p_alpha", value=FloatAttr.get(F32Type.get(), 1.0))
-    p_beta = hls.PortOp(port_type, dtype, [], param_layout, param_kind,
+    p_beta = hls.PortOp(port_type, dtype, [], param_layout, param_kind, 
                         "p_beta", value=FloatAttr.get(F32Type.get(), 0.0))
 
     input_layout = AffineMapAttr.get(AffineMap.get_identity(2))

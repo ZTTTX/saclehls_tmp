@@ -74,14 +74,15 @@ obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
 obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
 obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
 
-p_aMoveRule = lambda d0, d1, s0='k_KBufferDim': (d0 / 2, d1 / s0, d0 % s0, d1 % s0)
+p_aMoveRule = lambda d0, d1, s0='k_KBufferDim', s1='t_ParEntries': (d0 / 2, d1 / s0, d0 % s0 + s1, d1 % s0)
 obj.Add_Port('input', 'p_a', 'data_s', 't_DataType', ['p_m', 'p_k'], dataMoveRule=p_aMoveRule)
 
 # obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
 
 obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
 obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
-obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
+# obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
+obj.Add_Port('output', 'p_r', 'data_s', 't_DataType', ['p_m', 'p_n'], dataMoveRule=p_aMoveRule)
 obj.IO_Warpper()
 
 @linalg_structured_op
@@ -141,12 +142,12 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-# with ctx:
-#     pm = PassManager()
-#     scalehls.add_comprehensive_bufferize_passes(pm)
-#     scalehls.add_lower_dataflow_passes(pm)
-#     scalehls.add_convert_dataflow_to_func_passes(pm)
-#     pm.run(module.operation)  # type: ignore
+with ctx:
+    pm = PassManager()
+    scalehls.add_comprehensive_bufferize_passes(pm)
+    scalehls.add_lower_dataflow_passes(pm)
+    scalehls.add_convert_dataflow_to_func_passes(pm)
+    pm.run(module.operation)  # type: ignore
 
 print(module)
 

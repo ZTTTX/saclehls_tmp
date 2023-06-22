@@ -147,10 +147,10 @@ class IPRegistration:
                     if self.input_datatype in self.var_dict:
                         if default_value == None:
                             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                    self.input_layout, self.input_kind, self.var_name) 
+                                                                    self.input_layout, self.input_kind, [], self.var_name) 
                         else:
                             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                    self.input_layout, self.input_kind, self.var_name, value=FloatAttr.get(F32Type.get(), default_value)) 
+                                                                    self.input_layout, self.input_kind, [], self.var_name, value=FloatAttr.get(F32Type.get(), default_value)) 
                                           
                 if self.input_type == 'data': #Indicate this is a data access,
                     self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
@@ -164,7 +164,7 @@ class IPRegistration:
                     else:
                         self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                  self.input_layout, self.input_kind, self.var_name)
+                                                                  self.input_layout, self.input_kind, [], self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
                 
@@ -199,9 +199,9 @@ class IPRegistration:
                                 # symbol_ref_dict[item] = lambdaFunc.__defaults__[sCount]
                                 self.symbol_ref.append(self.var_dict[lambdaFunc.__defaults__[sCount + cCount]])
                                 sCount = sCount + 1
-                            if item.isdigit():
-                                input_dict[item] = 'AffineConstantExpr.get(int(' + item + '))'
-                                cCount = cCount + 1
+                            # if item.isdigit():
+                            #     input_dict[item] = 'AffineConstantExpr.get(int(' + item + '))'
+                            #     cCount = cCount + 1
                         mappedOutputStr = self.process_output_variables(outputVariables, input_dict)
                         for i in range(len(mappedOutputStr)):
                             resultName = 'r' + str(i)
@@ -211,7 +211,7 @@ class IPRegistration:
                         self.input_layout = AffineMapAttr.get(AffineMap.get(dCount, sCount + cCount, output_list))
 
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                self.input_layout, self.input_kind, self.var_name)
+                                                                self.input_layout, self.input_kind, self.symbol_ref, self.var_name)
 
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
@@ -230,8 +230,56 @@ class IPRegistration:
                     self.size_item = []
                     for item in self.output_size: #Check for pointing indexes for size
                         self.size_item.append(self.var_dict[item])
-                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                  self.output_layout, self.output_kind, self.var_name)
+                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.output_datatype], self.size_item, 
+                                                                  self.output_layout, self.output_kind, [], self.var_name)
+                    self.io_list.append(self.var_dict[self.var_name])
+                    self.io_lookup.append(self.var_name)
+                
+                if self.output_type == 'data_s':
+                    self.output_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.output_size)))
+                    self.output_kind = hls.PortKindAttr.get(hls.PortKind.output)
+                    self.size_item = []
+                    if self.output_size[0] != '0':
+                        for item in self.output_size: #Check for pointing indexes for size
+                            self.size_item.append(self.var_dict[item])
+                    else:
+                        self.output_layout = AffineMapAttr.get(AffineMap.get_empty())
+                        
+                    if dataMoveRule != None:
+                        self.symbol_ref = []
+                        self.const_ref = []
+                        lambdaFunc = dataMoveRule
+                        inputVariables, outputVariables = self.get_lambda_variables(lambdaFunc)
+                        input_dict = {}
+                        # symbol_ref_dict = {}
+                        output_list = []
+                        dCount = 0
+                        sCount = 0
+                        cCount = 0
+                        for i in range(len(inputVariables)):
+                            item = inputVariables[i]
+                            if item[0] == 'd':             
+                                input_dict[item] = 'AffineDimExpr.get(int(' + item[1:] + '))'
+                                dCount = dCount + 1
+                            if item[0] == 's':
+                                input_dict[item] = 'AffineSymbolExpr.get(int(' + item[1:] + '))'
+                                # symbol_ref_dict[item] = lambdaFunc.__defaults__[sCount]
+                                self.symbol_ref.append(self.var_dict[lambdaFunc.__defaults__[sCount + cCount]])
+                                sCount = sCount + 1
+                            # if item.isdigit():
+                            #     input_dict[item] = 'AffineConstantExpr.get(int(' + item + '))'
+                            #     cCount = cCount + 1
+                        mappedOutputStr = self.process_output_variables(outputVariables, input_dict)
+                        for i in range(len(mappedOutputStr)):
+                            resultName = 'r' + str(i)
+                            execStr = resultName + '=' + mappedOutputStr[i]
+                            exec(execStr)
+                            output_list.append(locals()[resultName])
+                        self.output_layout = AffineMapAttr.get(AffineMap.get(dCount, sCount + cCount, output_list))
+
+                    self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.output_datatype], self.size_item, 
+                                                                self.output_layout, self.output_kind, self.symbol_ref, self.var_name)
+
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
             
