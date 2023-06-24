@@ -102,7 +102,7 @@ class IPRegistration:
 
 
 
-    def Add_Template(self, name, type, datatype, size=[], default_value=None): #IF it is only number, size will be []
+    def Add_Template(self, name, type, datatype, size=[], default_value=None, need_print=True): #IF it is only number, size will be []
         with self.context, self.location, self.insertion:
             self.var_name = name
             self.template_type = type
@@ -127,9 +127,28 @@ class IPRegistration:
                 self.ip_template_type = IndexType.get()
                 self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
                                             candidates=ArrayAttr.get([IntegerAttr.get(IndexType.get(), self.template_default_value)]))
-            self.template_list.append(self.var_dict[self.var_name])
+            
+            if need_print:
+                self.template_list.append(self.var_dict[self.var_name])
+
+    def Add_Struct(self, struct_name, ref_list, need_print = True):
+        with self.context, self.location, self.insertion:
+            struct_name_attr =  StringAttr.get(struct_name)
+            struct_port_list = []
+            for cur_ref in ref_list:
+                if cur_ref in self.var_dict:
+                    if cur_ref in self.io_lookup:
+                        raise ValueError("Illegal struct payload type: PORT_TYPE")  
+                    else:
+                        struct_port_list.append(self.var_dict[cur_ref])
+            cur_structOp = hls.StructOp(struct_name_attr, struct_port_list, [])
+            dummy_ref_obj = hls.ConstParamOp(hls.TypeType.get(), struct_name_attr, hls.ParamKindAttr.get(hls.ParamKind.template))
+            self.var_dict[struct_name] = dummy_ref_obj
+            if need_print:
+                self.template_list.append(self.var_dict[struct_name])
+
     
-    def Add_Port(self, portType, name, type, datatype, size=[], default_value=None, dataMoveRule=None):
+    def Add_Port(self, portType, name, type, datatype, size=[], default_value=None, dataMoveRule=None, need_print=True):
         with self.context, self.location, self.insertion:
             self.current_port_type = portType
 
@@ -147,10 +166,10 @@ class IPRegistration:
                     if self.input_datatype in self.var_dict:
                         if default_value == None:
                             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                    self.input_layout, self.input_kind, [], self.var_name) 
+                                                                    self.input_layout, self.input_kind, self.var_name) 
                         else:
                             self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.input_size, 
-                                                                    self.input_layout, self.input_kind, [], self.var_name, value=FloatAttr.get(F32Type.get(), default_value)) 
+                                                                    self.input_layout, self.input_kind, self.var_name, value=FloatAttr.get(F32Type.get(), default_value)) 
                                           
                 if self.input_type == 'data': #Indicate this is a data access,
                     self.input_layout = AffineMapAttr.get(AffineMap.get_identity(len(self.input_size)))
@@ -164,7 +183,7 @@ class IPRegistration:
                     else:
                         self.input_layout = AffineMapAttr.get(AffineMap.get_empty())
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                  self.input_layout, self.input_kind, [], self.var_name)
+                                                                  self.input_layout, self.input_kind, self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
                 
@@ -211,7 +230,7 @@ class IPRegistration:
                         self.input_layout = AffineMapAttr.get(AffineMap.get(dCount, sCount + cCount, output_list))
 
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.input_datatype], self.size_item, 
-                                                                self.input_layout, self.input_kind, self.symbol_ref, self.var_name)
+                                                                self.input_layout, self.input_kind, self.var_name)
 
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
@@ -231,7 +250,7 @@ class IPRegistration:
                     for item in self.output_size: #Check for pointing indexes for size
                         self.size_item.append(self.var_dict[item])
                     self.var_dict[self.var_name] = hls.PortOp(self.port_type, self.var_dict[self.output_datatype], self.size_item, 
-                                                                  self.output_layout, self.output_kind, [], self.var_name)
+                                                                  self.output_layout, self.output_kind, self.var_name)
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
                 
@@ -282,8 +301,8 @@ class IPRegistration:
 
                     self.io_list.append(self.var_dict[self.var_name])
                     self.io_lookup.append(self.var_name)
-            
-            self.port_list.append(self.var_dict[self.var_name])
+            if need_print:
+                self.port_list.append(self.var_dict[self.var_name])
 
     def get_lambda_variables(self, lambda_func):
         parameter_names = list(inspect.signature(lambda_func).parameters.keys())

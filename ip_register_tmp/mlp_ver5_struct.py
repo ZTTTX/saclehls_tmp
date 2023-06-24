@@ -73,16 +73,16 @@ obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
 obj.Add_Port('input', 'alpha', 'para', 't_DataType',[] ,1)
 obj.Add_Port('input', 'beta', 'para', 't_DataType',[] ,0)
-
-p_aMoveRule = lambda d0, d1, s0='k_KBufferDim': (d1 + d0 / s0, d1 / s0, d0 % s0, d1 % s0)
-obj.Add_Port('input', 'p_a', 'data_s', 't_DataType', ['p_m', 'p_k'], dataMoveRule=p_aMoveRule)
-
-# obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
-
+obj.Add_Port('input', 'p_a', 'data', 't_DataType', ['p_m', 'p_k'])
 obj.Add_Port('input', 'p_b', 'data', 't_DataType', ['p_k', 'p_n'])
 obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
 obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
+
+obj.Add_Template('dummy_type', 'type', 'float', [], None, False)
+obj.Add_Template('dummy_int', 'para', 'int', [], 15, False)
+obj.Add_Struct('my_struct', ['dummy_type', 'dummy_int', 't_IndexType', 't_ParEntries'], True)
 obj.IO_Warpper()
+
 
 @linalg_structured_op
 def matmul_mono(
@@ -148,8 +148,8 @@ with ctx:
     scalehls.add_convert_dataflow_to_func_passes(pm)
     pm.run(module.operation)  # type: ignore
 
-print(module)
+# print(module)
 
-# buf = io.StringIO()
-# scalehls.emit_hlscpp(module, buf)
-# print(buf.getvalue())
+buf = io.StringIO()
+scalehls.emit_hlscpp(module, buf)
+print(buf.getvalue())

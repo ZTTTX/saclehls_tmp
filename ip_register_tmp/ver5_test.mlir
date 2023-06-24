@@ -19,11 +19,13 @@
 
 using namespace std;
 
-Struct my_test_struct {
-typedef float t_DataType;
-;
-static const unsigned t_MaxSizeC = 1024
+struct my_struct {
+typedef float dummy_type;
+static const unsigned dummy_int = 15;
+typedef int t_IndexType;
+static const unsigned t_ParEntries = 2
 };
+
 void forward_node0(
   float v0[1][10],
   float v1[10],
@@ -44,7 +46,7 @@ void forward_node1(
   float v9[1024][10],
   float v10[1][10]
 ) {	//
-  gemm<float, int, 32, 4, 1024, my_test_struct>(v8, v9, v10, v10, (int)1, (int)10, (int)1024, (float)1.000000, (float)0.000000);	// L19
+  gemm<float, int, 32, 2, 1024, my_struct>((int)1, (int)10, (int)1024, (float)1.000000, (float)0.000000, v8, v9, v10, v10);	// L19
 }
 
 void forward_node2(
@@ -70,7 +72,7 @@ void forward(
   #pragma HLS interface s_axilite port=v16 bundle=ctrl
   #pragma HLS interface m_axi offset=slave port=v17
   #pragma HLS interface s_axilite port=v17 bundle=ctrl
-  float v18[10] = {(float)0.010223, (float)-0.029616, (float)0.008847, (float)0.025677, (float)0.027571, (float)0.024401, (float)0.006311, (float)0.030089, (float)-0.018667, (float)-0.013252};	// L8
+  float v18[10] = {(float)-0.010131, (float)-0.024747, (float)0.022979, (float)0.017338, (float)0.012009, (float)0.025663, (float)0.028708, (float)-0.009487, (float)0.015359, (float)0.004245};	// L8
   #pragma HLS resource variable=v18 core=ram_t2p_bram
 
   float v19[1][1024];	//
