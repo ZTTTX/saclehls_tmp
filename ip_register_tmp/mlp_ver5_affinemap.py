@@ -58,7 +58,7 @@ torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 1, 32, 32),
                                        output_type="linalg-on-tensors")
 
 
-from ip_register_ver5 import IPRegistration
+from tmp.ip_register_tmp.ip_register_ver5_affinemap import IPRegistration
 
 obj = IPRegistration(torch_mlir_module)
 obj.Add_Lib('vitis')

@@ -101,6 +101,8 @@ with ctx, loc, insert:
     p_n = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_n")
     p_k = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_k")
 
+    p_test = hls.PortOp(port_type, itype, [], param_layout, param_kind,  "p_test")
+
     p_alpha = hls.PortOp(port_type, dtype, [], param_layout, param_kind, 
                          "p_alpha", value=FloatAttr.get(F32Type.get(), 1.0))
     p_beta = hls.PortOp(port_type, dtype, [], param_layout, param_kind, 
@@ -109,11 +111,8 @@ with ctx, loc, insert:
     input_layout = AffineMapAttr.get(AffineMap.get_identity(2))
     input_kind = hls.PortKindAttr.get(hls.PortKind.input)
 
-    sturct_name = FlatSymbolRefAttr.get("my_test_struct")
-    # sturct_payload = ArrayAttr.get([StringAttr.get("p_a"), StringAttr.get("p_b"), StringAttr.get("p_c")])
-    test_struct = hls.StructOp(sturct_name, [buffer_dim, par_entries, max_size_c], ArrayAttr.get([]))
     
-
+    
 
     # p_aMoveRule = lambda d0, d1, s0: (d0 / s0, d1 / s0, d0 % s0, d1 % s0)
     d0 = AffineDimExpr.get(0)
@@ -135,8 +134,16 @@ with ctx, loc, insert:
     p_r = hls.PortOp(port_type, dtype, [
                      p_m, p_n], output_layout, output_kind, "p_r")
 
+    # Struct Generation Example
+    sturct_name = StringAttr.get("my_test_struct")
+    test_struct = hls.StructOp(sturct_name, [dtype, par_entries, max_size_c], [])
+    const_param = hls.ConstParamOp(type_type, sturct_name, template_kind)
+    #Emit instruction Example
+    emit_inst = hls.EmitInstOp(ArrayAttr.get([StringAttr.get("gemm<k_KBufferDim>(p_m)")]))
+    
+
     semantics = hls.SemanticsOp([p_a, p_b, p_c, p_r, p_m, p_n, p_k, p_alpha, p_beta], [
-                                dtype, itype, buffer_dim, par_entries, max_size_c], ArrayAttr.get([]))
+                                dtype, itype, buffer_dim, par_entries, max_size_c, const_param], ArrayAttr.get([]))
     semantics.init_args([p_a.result, p_b.result, p_c.result, p_r.result])
     semantics_blk = semantics.body.blocks[0]
     semantics_args = semantics_blk.arguments
@@ -191,15 +198,15 @@ with ctx:
         "builtin.module(scalehls-implement-task-design-space)")
     pm.run(module.operation)  # type: ignore
 
-# with ctx:
-#     pm = PassManager()
-#     scalehls.add_comprehensive_bufferize_passes(pm)
-#     scalehls.add_lower_dataflow_passes(pm)
-#     scalehls.add_convert_dataflow_to_func_passes(pm)
-#     pm.run(module.operation)  # type: ignore
+with ctx:
+    pm = PassManager()
+    scalehls.add_comprehensive_bufferize_passes(pm)
+    scalehls.add_lower_dataflow_passes(pm)
+    scalehls.add_convert_dataflow_to_func_passes(pm)
+    pm.run(module.operation)  # type: ignore
 
-print(module)
+# print(module)
 
-# buf = io.StringIO()
-# scalehls.emit_hlscpp(module, buf)
-# print(buf.getvalue())
+buf = io.StringIO()
+scalehls.emit_hlscpp(module, buf)
+print(buf.getvalue())
