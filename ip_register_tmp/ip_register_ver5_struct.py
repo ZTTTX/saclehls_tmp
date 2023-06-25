@@ -109,7 +109,7 @@ class IPRegistration:
             self.template_datatype = datatype
             self.template_size = size
             self.template_default_value = default_value
-
+            default_value_list = []
             self.ip_template_kind = hls.ParamKindAttr.get(hls.ParamKind.template)
 
             if self.template_type == 'type': #Indicate this template para is a TYPE
@@ -125,8 +125,10 @@ class IPRegistration:
 
             if self.template_type == 'para': #Indicate this template para is an integer
                 self.ip_template_type = IndexType.get()
+                for cur_def_val in self.template_default_value:
+                    default_value_list.append(IntegerAttr.get(IndexType.get(), int(cur_def_val)))
                 self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
-                                            candidates=ArrayAttr.get([IntegerAttr.get(IndexType.get(), self.template_default_value)]))
+                                            candidates=ArrayAttr.get(default_value_list))
             
             if need_print:
                 self.template_list.append(self.var_dict[self.var_name])

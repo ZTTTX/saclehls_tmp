@@ -26,22 +26,36 @@ from scalehls.passmanager import PassManager
 import io
 import shutil
 
+import random
+random.seed(123)
+
 
 class MLP(nn.Module):
     '''
       Multilayer Perceptron.
     '''
 
+    # def __init__(self):
+    #     super().__init__()
+    #     self.layers = nn.Sequential(
+    #         nn.Flatten(),
+    #         # nn.Linear(32 * 32 * 3, 64),
+    #         # nn.ReLU(),
+    #         # nn.Linear(64, 32),
+    #         # nn.ReLU(),
+    #         nn.Linear(32 * 32 * 1, 10),
+    #         # nn.ReLU()
+    #     )
+    
     def __init__(self):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Flatten(),
-            # nn.Linear(32 * 32 * 3, 64),
-            # nn.ReLU(),
-            # nn.Linear(64, 32),
-            # nn.ReLU(),
-            nn.Linear(32 * 32 * 1, 10),
-            # nn.ReLU()
+            nn.Linear(32 * 32 * 3, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 10)
         )
 
     def forward(self, x):
@@ -52,10 +66,10 @@ class MLP(nn.Module):
 model = MLP()
 model.train(False)
 
-# torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
-#                                        output_type="linalg-on-tensors")
-torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 1, 32, 32),
+torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 3, 32, 32),
                                        output_type="linalg-on-tensors")
+# torch_mlir_module = torch_mlir.compile(model, torch.ones(1, 1, 32, 32),
+#                                        output_type="linalg-on-tensors")
 
 
 from ip_register_ver5_struct import IPRegistration
@@ -65,9 +79,9 @@ obj.Add_Lib('vitis')
 obj.Add_IP('gemm', "Vitis_Libraries/blas/L1/include/hw/xf_blas/gemm.hpp")
 obj.Add_Template('t_DataType', 'type', 'float')
 obj.Add_Template('t_IndexType', 'type', 'int')
-obj.Add_Template('k_KBufferDim', 'para', 'int', [], 32)
-obj.Add_Template('t_ParEntries', 'para', 'int', [], 2)
-obj.Add_Template('t_MaxSizeC', 'para', 'int', [], 1024)
+obj.Add_Template('k_KBufferDim', 'para', 'int', [], [32])
+obj.Add_Template('t_ParEntries', 'para', 'int', [], [2, 4])
+obj.Add_Template('t_MaxSizeC', 'para', 'int', [], [1024])
 obj.Add_Port('input', 'p_m', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_n', 'para', 't_IndexType')
 obj.Add_Port('input', 'p_k', 'para', 't_IndexType')
@@ -79,7 +93,7 @@ obj.Add_Port('input', 'p_c', 'data', 't_DataType', ['p_m', 'p_n'])
 obj.Add_Port('output', 'p_r', 'data', 't_DataType', ['p_m', 'p_n'])
 
 obj.Add_Template('dummy_type', 'type', 'float', [], None, False)
-obj.Add_Template('dummy_int', 'para', 'int', [], 15, False)
+obj.Add_Template('dummy_int', 'para', 'int', [], [15], False)
 obj.Add_Struct('my_struct', ['dummy_type', 'dummy_int', 't_IndexType', 't_ParEntries'], True)
 obj.IO_Warpper()
 
@@ -132,7 +146,7 @@ for space in module.body.operations:
                 elif param.kind == hls.ParamKind.parallel:
                     param.value = IntegerAttr.get(IndexType.get(), 0)
                 elif param.kind == hls.ParamKind.template:
-                    param.value = IntegerAttr.get(IndexType.get(), 4)
+                    param.value = IntegerAttr.get(IndexType.get(), random.randint(0, 10))
                 elif param.kind == hls.ParamKind.impl:
                     *_, param.value = param.candidates
 
@@ -148,8 +162,8 @@ with ctx:
     scalehls.add_convert_dataflow_to_func_passes(pm)
     pm.run(module.operation)  # type: ignore
 
-# print(module)
+print(module)
 
-buf = io.StringIO()
-scalehls.emit_hlscpp(module, buf)
-print(buf.getvalue())
+# buf = io.StringIO()
+# scalehls.emit_hlscpp(module, buf)
+# print(buf.getvalue())
