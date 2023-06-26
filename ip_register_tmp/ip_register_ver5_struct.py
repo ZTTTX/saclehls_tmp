@@ -8,7 +8,7 @@ from scalehls.dialects import linalg
 from scalehls.ir import AffineMapAttr
 from scalehls.ir import AffineMap
 from scalehls.ir import AffineExpr, AffineExprList
-from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr, AffineAddExpr, AffineConstantExpr
+from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr, AffineAddExpr, AffineConstantExpr, AffineMulExpr
 from scalehls.ir import IntegerAttr, StringAttr, FloatAttr
 from scalehls.ir import ArrayAttr
 from scalehls.ir import F32Type, IndexType
@@ -124,12 +124,21 @@ class IPRegistration:
                                             candidates=ArrayAttr.get([TypeAttr.get(IndexType.get())]))
 
             if self.template_type == 'para': #Indicate this template para is an integer
-                self.ip_template_type = IndexType.get()
-                for cur_def_val in self.template_default_value:
-                    default_value_list.append(IntegerAttr.get(IndexType.get(), int(cur_def_val)))
-                self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
-                                            candidates=ArrayAttr.get(default_value_list))
-            
+                if datatype == 'int':
+                    self.ip_template_type = IndexType.get()
+                    for cur_def_val in self.template_default_value:
+                        default_value_list.append(IntegerAttr.get(IndexType.get(), int(cur_def_val)))
+                    self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
+                                                candidates=ArrayAttr.get(default_value_list))
+                if datatype == 'bool':
+                    raise ValueError("Bool type input is not supported for now")
+                    # self.ip_template_type = IndexType.get()
+                    # for cur_def_val in self.template_default_value:
+                    #     default_value_list.append(IntegerAttr.get(IndexType.get(), int(cur_def_val)))
+                    # self.var_dict[self.var_name] = hls.ParamOp(self.ip_template_type, self.template_size, self.ip_template_kind, self.var_name, 
+                    #                             candidates=ArrayAttr.get(default_value_list))
+
+
             if need_print:
                 self.template_list.append(self.var_dict[self.var_name])
 

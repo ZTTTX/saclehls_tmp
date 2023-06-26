@@ -8,7 +8,7 @@ from scalehls.dialects import linalg
 from scalehls.ir import AffineMapAttr
 from scalehls.ir import AffineMap
 from scalehls.ir import AffineExpr, AffineExprList
-from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr, FlatSymbolRefAttr
+from scalehls.ir import AffineCeilDivExpr, AffineModExpr, AffineDimExpr, AffineSymbolExpr, FlatSymbolRefAttr, AffineMulExpr
 from scalehls.ir import IntegerAttr, StringAttr, FloatAttr
 from scalehls.ir import ArrayAttr
 from scalehls.ir import F32Type, IndexType
@@ -131,8 +131,8 @@ with ctx, loc, insert:
 
     output_layout = AffineMapAttr.get(AffineMap.get_identity(2))
     output_kind = hls.PortKindAttr.get(hls.PortKind.output)
-    p_r = hls.PortOp(port_type, dtype, [
-                     p_m, p_n], output_layout, output_kind, "p_r")
+    # p_r = hls.PortOp(port_type, dtype, [p_m, p_n], output_layout, output_kind, "p_r")
+    p_r = hls.PortOp(port_type, dtype, [AffineMulExpr.get(p_m, p_n)], output_layout, output_kind, "p_r")
 
     # Struct Generation Example
     sturct_name = StringAttr.get("my_test_struct")

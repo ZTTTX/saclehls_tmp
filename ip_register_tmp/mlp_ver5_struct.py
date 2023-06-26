@@ -162,8 +162,8 @@ with ctx:
     scalehls.add_convert_dataflow_to_func_passes(pm)
     pm.run(module.operation)  # type: ignore
 
-print(module)
+# print(module)
 
-# buf = io.StringIO()
-# scalehls.emit_hlscpp(module, buf)
-# print(buf.getvalue())
+buf = io.StringIO()
+scalehls.emit_hlscpp(module, buf)
+print(buf.getvalue())
