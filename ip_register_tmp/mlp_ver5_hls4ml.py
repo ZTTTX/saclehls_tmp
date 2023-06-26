@@ -33,9 +33,9 @@ random.seed(123)
 class ConvMLP(nn.Module):
     def __init__(self):
         super(ConvMLP, self).__init__()
-        self.conv = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
+        self.conv = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=0)
         self.flatten = nn.Flatten()
-        self.fc = nn.Linear(16 * 32 * 32, 10)
+        self.fc = nn.Linear(16 * 30 * 30, 10)
 
     def forward(self, x):
         x = self.conv(x)
@@ -98,10 +98,10 @@ obj.Add_IP('conv_2d_cl', "src/nnet_conv2d.h")
 obj.Add_Template('bias_t', 'type', 'float', [], None, False)
 obj.Add_Template('weight_t', 'type', 'float', [], None, False)
 obj.Add_Template('accum_t', 'type', 'float', [], None, False)
-obj.Add_Template('pad_top', 'para', 'int', [], [1], False)
-obj.Add_Template('pad_bottom', 'para', 'int', [], [1], False)
-obj.Add_Template('pad_left', 'para', 'int', [], [1], False)
-obj.Add_Template('pad_right', 'para', 'int', [], [1], False)
+obj.Add_Template('pad_top', 'para', 'int', [], [0], False)
+obj.Add_Template('pad_bottom', 'para', 'int', [], [0], False)
+obj.Add_Template('pad_left', 'para', 'int', [], [0], False)
+obj.Add_Template('pad_right', 'para', 'int', [], [0], False)
 obj.Add_Template('in_height', 'para', 'int', [], [32], False)
 obj.Add_Template('in_width', 'para', 'int', [], [32], False)
 obj.Add_Template('n_chan', 'para', 'int', [], [1], False)
@@ -110,8 +110,8 @@ obj.Add_Template('filt_width', 'para', 'int', [], [3], False)
 obj.Add_Template('n_filt', 'para', 'int', [], [16], False)
 obj.Add_Template('stride_height', 'para', 'int', [], [1], False)
 obj.Add_Template('stride_width', 'para', 'int', [], [1], False)
-obj.Add_Template('out_height', 'para', 'int', [], [32], False)
-obj.Add_Template('out_width', 'para', 'int', [], [32], False)
+obj.Add_Template('out_height', 'para', 'int', [], [30], False)
+obj.Add_Template('out_width', 'para', 'int', [], [30], False)
 obj.Add_Template('dilation_height', 'para', 'int', [], [1], False)
 obj.Add_Template('dilation_width', 'para', 'int', [], [1], False)
 obj.Add_Template('reuse_factor', 'para', 'int', [], [1], False)
@@ -123,7 +123,7 @@ obj.Add_Struct('conv2d_config', ['bias_t', 'weight_t', 'accum_t', 'pad_top', 'pa
 
 #Need dummy size for the port size
 obj.Add_Template('data_size', 'para', 'int', [], [32*32*1], False)
-obj.Add_Template('result_size', 'para', 'int', [], [32*32*16], False)
+obj.Add_Template('result_size', 'para', 'int', [], [30*30*16], False)
 obj.Add_Template('weight_size', 'para', 'int', [], [3*3*1*16], False)
 
 #add templates and ports needed in the actuall call
