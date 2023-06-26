@@ -140,7 +140,7 @@ def conv_2d(
         input=TensorDef(T, S.H_in, S.W_in, S.C),
         weights=TensorDef(T, S.K_h, S.K_w, S.C, S.K_out),
         output=TensorDef(T, S.H_out, S.W_out, S.K_out, output=True)):
-    domain(D.in_h, D.wt_h, D.wt_c, D.in_w, D.wt_w, D.wt_c, D.in_c, D.out_k)
+    domain(D.in_h, D.wt_h, D.in_w, D.wt_w, D.in_c, D.out_k)
     # domain(D.in_h[D.wt_h, D.wt_c], D.in_w[D.wt_w, D.wt_c], D.in_c, D.out_k)
     output[D.in_h, D.in_w, D.out_k] += input[D.in_h + D.wt_h, D.in_w + D.wt_w, D.in_c] * weights[D.wt_h, D.wt_w, D.in_c, D.out_k]
     
