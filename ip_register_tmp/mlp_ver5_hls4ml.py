@@ -129,23 +129,44 @@ obj.Add_Template('weight_size', 'para', 'int', [], [3*3*1*16], False)
 #add templates and ports needed in the actuall call
 obj.Add_Template('data_T', 'type', 'float')
 obj.Add_Template('res_T', 'type', 'float')
-obj.Add_Port('input', 'data', 'data', 'data_T', ['data_size'])
-obj.Add_Port('input', 'result', 'data', 'res_T', ['result_size'])
-obj.Add_Port('input', 'weights', 'data', 'weight_t', ['weight_size'])
-obj.Add_Port('input', 'biases', 'data', 'bias_t', ['n_filt'])
+# obj.Add_Port('input', 'data', 'data', 'data_T', ['data_size'])
+# obj.Add_Port('input', 'result', 'data', 'res_T', ['result_size'])
+# obj.Add_Port('input', 'weights', 'data', 'weight_t', ['weight_size'])
+# obj.Add_Port('input', 'biases', 'data', 'bias_t', ['n_filt'])
+
+obj.Add_Port('input', 'data', 'data', 'data_T', ['in_height', 'in_width', 'n_chan'])
+obj.Add_Port('input', 'result', 'data', 'res_T', ['out_height', 'out_width', 'n_filt'])
+obj.Add_Port('input', 'weights', 'data', 'weight_t', ['filt_height', 'filt_width','n_chan', 'n_filt'])
+
+
+obj.Add_Port('input', 'dummy_result', 'data', 'res_T', ['out_height', 'out_width', 'n_filt'], None, False)
+
 obj.IO_Warpper()
 
-@linalg_structured_op
-def conv_2d(
-        input=TensorDef(T, S.H_in, S.W_in, S.C),
-        weights=TensorDef(T, S.K_h, S.K_w, S.C, S.K_out),
-        output=TensorDef(T, S.H_out, S.W_out, S.K_out, output=True)):
-    domain(D.in_h, D.wt_h, D.in_w, D.wt_w, D.in_c, D.out_k)
-    # domain(D.in_h[D.wt_h, D.wt_c], D.in_w[D.wt_w, D.wt_c], D.in_c, D.out_k)
-    output[D.in_h, D.in_w, D.out_k] += input[D.in_h + D.wt_h, D.in_w + D.wt_w, D.in_c] * weights[D.wt_h, D.wt_w, D.in_c, D.out_k]
-    
+from scalehls.ir import *
+from scalehls.dialects import builtin
+from scalehls.dialects import func
+from scalehls.dialects import linalg
 
-module, ctx = obj.IP_Wrapper(conv_2d, [['input','data'], ['input', 'weights']], [['ip_output', 'result']])
+from scalehls.dialects.linalg.opdsl.lang import *
+
+T1 = TV.T1
+T2 = TV.T2
+
+
+@linalg_structured_op
+def conv_poly(
+    I=TensorDef(T1, S.IH, S.IW, S.C),
+    K=TensorDef(T2, S.KH, S.KW, S.C, S.N),
+    O=TensorDef(U, S.OH, S.OW, S.N, output=True),
+    strides=IndexAttrDef(S.SH, S.SW, default=[1, 1]),
+    dilations=IndexAttrDef(S.DH, S.DW, default=[1, 1])):
+  domain(D.n, D.oh, D.ow, D.kh, D.kw, D.c)
+  O[D.oh, D.ow, D.n] += TypeFn.cast_signed(
+      U, I[D.oh * S.SH + D.kh * S.DH, D.ow * S.SW + D.kw * S.DW,
+           D.c]) * TypeFn.cast_signed(U, K[D.kh, D.kw, D.c, D.n])
+
+module, ctx = obj.IP_Wrapper(conv_poly, [['input','data'], ['input', 'weights'], ['output', 'dummy_result']], [['ip_output', 'result']])
 
 
 #===================================================================================================
@@ -200,8 +221,8 @@ with ctx:
     scalehls.add_convert_dataflow_to_func_passes(pm)
     pm.run(module.operation)  # type: ignore
 
-# print(module)
+print(module)
 
-buf = io.StringIO()
-scalehls.emit_hlscpp(module, buf)
-print(buf.getvalue())
+# buf = io.StringIO()
+# scalehls.emit_hlscpp(module, buf)
+# print(buf.getvalue())
